@@ -87,8 +87,10 @@ struct Settings {
   // play whatever line has been pasted into customRingtone.
   uint8_t  alarmSound  = 1;            // the classic alarm clock
   String   customRingtone = "";
-  // 0 is silent, 100 is as loud as the board can manage.
-  uint8_t  alarmVolume = 100;
+  // 0 is silent, 100 is as loud as the board can manage. Starts at half,
+  // because full volume distorts badly on the small speakers these boards
+  // are usually paired with. It can be turned up on the settings page.
+  uint8_t  alarmVolume = 50;
 
   AlarmConfig alarms[ALARM_COUNT];
 };

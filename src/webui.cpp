@@ -436,7 +436,7 @@ static void handleAction(AsyncWebServerRequest *request) {
     // settings, so you can listen to a change before deciding to keep it.
     command->type   = CMD_SOUND_TEST;
     command->sound  = (uint8_t)constrain(paramLong(request, "sound", 1), 1, SOUND_CUSTOM);
-    command->volume = (uint8_t)constrain(paramLong(request, "vol", 100), 0, 100);
+    command->volume = (uint8_t)constrain(paramLong(request, "vol", 50), 0, 100);
     command->custom = param(request, "custom", String(""));
     if (command->custom.length() >= MAX_RTTTL_CHARS) command->custom.remove(MAX_RTTTL_CHARS - 1);
   } else {

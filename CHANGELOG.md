@@ -5,6 +5,16 @@ For what the project is and how to install it, see the [README](README.md).
 
 ---
 
+## What changed in 1.13.5
+
+**The alarm volume starts at half.** Full volume distorts badly on the small
+speakers these boards are usually paired with. A new clock, or one that has
+been factory reset, now starts at 50%, and the slider on the settings page
+still goes to 100 for anyone who wants it louder. A clock that already has a
+volume saved keeps it.
+
+---
+
 ## What changed in 1.13.4
 
 **Stopping an alarm no longer leaves the colours flipped.** The alarm flashes
