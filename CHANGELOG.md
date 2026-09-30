@@ -5,6 +5,26 @@ For what the project is and how to install it, see the [README](README.md).
 
 ---
 
+## What changed in 1.13.4
+
+**Stopping an alarm no longer leaves the colours flipped.** The alarm flashes
+the screen by flipping the panel's own invert setting, a single command,
+rather than repainting it. Tapping to stop the alarm switched straight back to
+the clock, and the only code that put the colours back only ran while the
+screen was still marked as the alarm screen, which by then it was not. A tap
+that landed while the colours were flipped left them that way until a restart.
+The colours are now put back whenever the alarm screen is left, however it is
+left.
+
+**Release files come out of every build again.** Each build now also leaves a
+copy of its firmware in a folder named for the version, such as
+`release-v1.13.4`, under a name that says which board it is for, with a list
+of checksums alongside. Those are the files to attach to a GitHub release, and
+GITHUB-PAGES.md now describes publishing one step by step. The instructions
+had been describing that folder for some time, but nothing was making it.
+
+---
+
 ## What changed in 1.13.3
 
 This one came out of reading the source of the libraries the clock is built on,

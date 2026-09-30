@@ -76,8 +76,8 @@ The simplest way, with nothing to install:
 
 1. On your new empty repository page, click **uploading an existing file**.
 2. Open your project folder on your computer.
-3. Drag in everything in the project folder **except** `.pio` and
-   `release-v1.8.0`. That is:
+3. Drag in everything in the project folder **except** `.pio` and any
+   folder whose name starts with `release-v`. That is:
 
    - the folders `src`, `docs` and `licenses`
    - `platformio.ini`, `merge_firmware.py`, `preview.bat`, `.gitignore`
@@ -173,26 +173,50 @@ The flashing page covers people with Chrome or Edge on a desktop. A release
 covers everyone else, and gives each version a fixed address that does not
 change under people when you update the page.
 
+Pushing to GitHub does not make a release by itself. It is a separate step,
+done on the website, once per version.
+
+### Getting the files
+
+Every build leaves a copy of its firmware in a folder in your project named
+for the version, for example `release-v1.13.4`. The copy is named for the
+board it is for, and a file called `SHA256SUMS.txt` next to it lists a
+checksum for each one, so anyone can check that what they downloaded is what
+you published.
+
+Build all three boards so the folder has all three files. In the PlatformIO
+panel on the left of VS Code, under **Project Tasks**, open each of `cyd28`,
+`cyd32` and `cyd35` in turn and click **Build**. When all three are done the
+folder holds:
+
+- `My_CYD_Clock-v1.13.4-2.8in-ESP32-2432S028R.bin`
+- `My_CYD_Clock-v1.13.4-3.2in-ESP32-2432S032R.bin`
+- `My_CYD_Clock-v1.13.4-3.5in-4.0in-ESP32-3248S035R.bin`
+- `SHA256SUMS.txt`
+
+with your version number in place of 1.13.4.
+
+### Publishing it
+
 1. On your repository, click **Releases** down the right hand side, then
    **Create a new release**.
-2. Click **Choose a tag**, type `v1.8.0`, and choose **Create new tag**.
-3. Title it `v1.8.0`. In the description, say briefly what changed. The
-   [CHANGELOG](CHANGELOG.md) has the wording already.
-4. Drag the three `.bin` files from the `release-v1.8.0` folder into the
-   attachments box, along with `SHA256SUMS.txt`.
+2. Click **Choose a tag**, type the version with a `v` in front, for example
+   `v1.13.4`, and choose **Create new tag**. Leave the target as `main`.
+3. Give it the same name as the tag. In the description, say briefly what
+   changed. The [CHANGELOG](CHANGELOG.md) has the wording already.
+4. Drag the four files from the release folder into the attachments box.
 5. Click **Publish release**.
 
-Those files are named so it is obvious which board each one is for, because a
-file called `cyd35.bin` means nothing to someone who has just landed on your
-page.
+Push the version to GitHub before you publish its release, so the tag points
+at the code the files were built from.
 
-They are written starting at address zero, so anyone can flash one with
+The files are written starting at address zero, so anyone can flash one with
 esptool, the Espressif download tool, or anything similar, without needing to
 know where the four pieces inside it go.
 
-The `release-v1.8.0` folder itself is ignored by Git on purpose. Those files
-are the same ones already in `docs/firmware`, just renamed, and there is no
-sense storing 3.7 MB twice.
+The release folders are left out of Git on purpose. Those files are the same
+ones already in `docs/firmware`, just renamed, and there is no sense storing
+them twice.
 
 ---
 

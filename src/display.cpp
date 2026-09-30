@@ -1272,6 +1272,8 @@ static void renderAlarm(struct tm *t, bool inverted) {
   tft.drawString("Touch the screen to stop", W / 2, downY(0.89f));
 }
 
+static void leavingScreen(ScreenId from, ScreenId to);
+
 // ---------------------------------------------------------------------------
 // Message screen
 // ---------------------------------------------------------------------------
@@ -1281,6 +1283,7 @@ void uiMessage(const String &line1, const String &line2, const String &line3,
   const int W = tft.width();
   const int H = tft.height();
   const uint16_t back = uiColor(cfg.colorBack);
+  leavingScreen(g_screen, SCREEN_MESSAGE);
   g_screen = SCREEN_MESSAGE;
 
   tft.fillScreen(back);
@@ -1344,6 +1347,7 @@ void uiConfigureScreen(const String &ipUrl, const String &nameUrl) {
   const int W = tft.width();
   const int H = tft.height();
   const int widest = W - acrossX(0.05f);
+  leavingScreen(g_screen, SCREEN_MESSAGE);
   g_screen = SCREEN_MESSAGE;
 
   struct Line { String text; uint16_t colour; int from; };
@@ -1383,6 +1387,7 @@ void uiPortalScreen(const String &ssid, const String &address, int clients) {
   const uint16_t back = uiColor(cfg.colorBack);
   const int W = tft.width();
   const int H = tft.height();
+  leavingScreen(g_screen, SCREEN_MESSAGE);
   g_screen = SCREEN_MESSAGE;
 
   tft.fillScreen(back);
@@ -1459,8 +1464,19 @@ static bool isWeatherScreen(ScreenId s) {
          s == SCREEN_WEATHER_DAILY;
 }
 
+// Leaving the alarm screen by any route has to put the panel's colours back.
+// The alarm flashes by flipping the panel's invert bit rather than repainting,
+// and the only place that used to undo it ran when the screen was still marked
+// as the alarm screen. A tap to stop the alarm switched straight to the clock
+// first, so that never ran, and if the tap landed while the colours were
+// flipped they stayed that way until a restart.
+static void leavingScreen(ScreenId from, ScreenId to) {
+  if (from == SCREEN_ALARM && to != SCREEN_ALARM) uiApplyInvert();
+}
+
 void uiSetScreen(ScreenId screen) {
   if (screen != g_screen) {
+    leavingScreen(g_screen, screen);
     g_screen = screen;
     uiRedraw();
   }
