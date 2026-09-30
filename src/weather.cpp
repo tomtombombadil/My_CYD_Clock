@@ -27,6 +27,34 @@ static uint32_t          g_lastGoodMs  = 0;   // last attempt that actually work
 static uint32_t          g_retryAtMs   = 0;
 static uint8_t           g_failures    = 0;
 
+// The settings a fetch needs, copied out of cfg in one go at the start of the
+// fetch. The web page can change cfg at any moment, and this task used to read
+// it field by field as it went, which is how a postcode could change halfway
+// through a lookup. Working from a copy means a fetch always describes one
+// place, and it never reads a text setting while another core is replacing it.
+struct Where {
+  String  zip, country, place;
+  double  latitude = 0, longitude = 0;
+  bool    haveLocation = false;
+  bool    metric = false;
+  uint8_t forecastDays = 7;
+};
+
+static Where snapshotWhere() {
+  Where w;
+  cfgLock();
+  w.zip          = cfg.zip;
+  w.country      = cfg.country;
+  w.place        = cfg.placeName;
+  w.latitude     = cfg.latitude;
+  w.longitude    = cfg.longitude;
+  w.haveLocation = cfg.haveLocation;
+  w.metric       = cfg.metric;
+  w.forecastDays = cfg.forecastDays;
+  cfgUnlock();
+  return w;
+}
+
 const char *weatherText(int code) {
   switch (code) {
     case 0:  return "Clear";
@@ -215,8 +243,14 @@ static bool fetchJson(const String &url, JsonDocument &doc,
 
 // Turns the ZIP code into a latitude and longitude. Only needs to run when the
 // ZIP code changes, so the result is saved.
-static bool lookUpLocation() {
-  String url = "http://api.zippopotam.us/" + cfg.country + "/" + cfg.zip;
+//
+// The answer is only kept if the postcode is still the one that was looked up.
+// If it was changed on the settings page while the lookup was running, the
+// answer belongs to the old one, so it is thrown away and the lookup is asked
+// for again. Keeping it used to put the old town under the new postcode and
+// mark it as known, and because the position is saved, that stuck for good.
+static bool lookUpLocation(Where &w) {
+  String url = "http://api.zippopotam.us/" + w.country + "/" + w.zip;
 
   StaticJsonDocument<256> filter;
   filter["places"][0]["latitude"]           = true;
@@ -224,54 +258,72 @@ static bool lookUpLocation() {
   filter["places"][0]["place name"]         = true;
   filter["places"][0]["state abbreviation"] = true;
 
-  logLine("Looking up " + cfg.country + " " + cfg.zip);
+  logLine("Looking up " + w.country + " " + w.zip);
   DynamicJsonDocument doc(1024);
   if (!fetchJson(url, doc, filter, false, "ZIP lookup")) {
-    setStatus("Could not look up ZIP " + cfg.zip);
+    setStatus("Could not look up ZIP " + w.zip);
     return false;
   }
 
   JsonArray places = doc["places"].as<JsonArray>();
   if (places.isNull() || places.size() == 0) {
-    setStatus("ZIP " + cfg.zip + " not found");
+    setStatus("ZIP " + w.zip + " not found");
     return false;
   }
 
   JsonObject p = places[0];
-  cfg.latitude  = atof(p["latitude"]  | "0");
-  cfg.longitude = atof(p["longitude"] | "0");
+  double lat = atof(p["latitude"]  | "0");
+  double lon = atof(p["longitude"] | "0");
 
   String name  = p["place name"] | "";
   String state = p["state abbreviation"] | "";
-  cfg.placeName = state.length() ? (name + ", " + state) : name;
-  cfg.haveLocation = (cfg.latitude != 0.0 || cfg.longitude != 0.0);
+  String place = state.length() ? (name + ", " + state) : name;
+  bool   found = (lat != 0.0 || lon != 0.0);
 
-  if (cfg.haveLocation) {
-    settingsSaveLocation();
-    logLine("Location is " + cfg.placeName + " at " +
-            String(cfg.latitude, 4) + ", " + String(cfg.longitude, 4));
-  } else {
+  if (!found) {
     logLine("The ZIP lookup gave no usable position");
+    return false;
   }
-  return cfg.haveLocation;
+
+  cfgLock();
+  bool stillCurrent = (cfg.zip == w.zip && cfg.country == w.country);
+  if (stillCurrent) {
+    cfg.latitude     = lat;
+    cfg.longitude    = lon;
+    cfg.placeName    = place;
+    cfg.haveLocation = true;
+  }
+  cfgUnlock();
+
+  if (!stillCurrent) {
+    logLine("The postcode changed during the lookup, looking up the new one");
+    g_wantGeocode = true;
+    g_wantRefresh = true;
+    return false;
+  }
+
+  settingsSaveLocation(lat, lon, place, true);
+  w.latitude = lat; w.longitude = lon; w.place = place; w.haveLocation = true;
+  logLine("Location is " + place + " at " + String(lat, 4) + ", " + String(lon, 4));
+  return true;
 }
 
-static bool fetchForecast() {
-  if (!cfg.haveLocation) return false;
+static bool fetchForecast(const Where &w) {
+  if (!w.haveLocation) return false;
 
-  logLine("Forecast for " + (cfg.placeName.length() ? cfg.placeName : cfg.zip) +
-          " at " + String(cfg.latitude, 4) + ", " + String(cfg.longitude, 4));
+  logLine("Forecast for " + (w.place.length() ? w.place : w.zip) +
+          " at " + String(w.latitude, 4) + ", " + String(w.longitude, 4));
 
   String url = "http://api.open-meteo.com/v1/forecast";
-  url += "?latitude=";  url += String(cfg.latitude, 4);
-  url += "&longitude="; url += String(cfg.longitude, 4);
+  url += "?latitude=";  url += String(w.latitude, 4);
+  url += "&longitude="; url += String(w.longitude, 4);
   url += "&current=temperature_2m,relative_humidity_2m,apparent_temperature,"
          "is_day,weather_code,wind_speed_10m";
   url += "&hourly=temperature_2m,weather_code&forecast_hours=24";
   url += "&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset";
-  url += "&forecast_days="; url += String(cfg.forecastDays);
+  url += "&forecast_days="; url += String(w.forecastDays);
   url += "&timezone=auto";
-  if (cfg.metric) {
+  if (w.metric) {
     url += "&temperature_unit=celsius&wind_speed_unit=kmh";
   } else {
     url += "&temperature_unit=fahrenheit&wind_speed_unit=mph";
@@ -322,7 +374,7 @@ static bool fetchForecast() {
   fresh.wind      = current["wind_speed_10m"]       | 0.0f;
   fresh.code      = current["weather_code"]         | -1;
   fresh.isDaytime = ((int)(current["is_day"] | 1) == 1);
-  fresh.place     = cfg.placeName.length() ? cfg.placeName : cfg.zip;
+  fresh.place     = w.place.length() ? w.place : w.zip;
 
   // Work out today's date so we can line the daily list up correctly.
   struct tm now;
@@ -400,17 +452,30 @@ static bool fetchForecast() {
 
   fresh.lastUpdateMs = millis();
   fresh.status = "Updated";
-  g_version++;
-  g_lastGoodMs = millis();
 
-  logLine("Weather: " + tempPlain(fresh.temp) + (cfg.metric ? "C " : "F ") +
+  logLine("Weather: " + tempPlain(fresh.temp) + (w.metric ? "C " : "F ") +
           weatherText(fresh.code) + ", " + String(fresh.hourCount) +
           " hours and " + String(fresh.dayCount) + " days received");
+
+  // Same check as the lookup: if the postcode changed while this forecast was
+  // on its way, it describes the old place, so it is not shown.
+  cfgLock();
+  bool stillCurrent = (cfg.zip == w.zip && cfg.country == w.country);
+  cfgUnlock();
+  if (!stillCurrent) {
+    logLine("Forecast: the postcode changed while it was fetched, discarding it");
+    return false;
+  }
 
   if (xSemaphoreTake(g_lock, pdMS_TO_TICKS(500)) == pdTRUE) {
     g_weather = fresh;
     xSemaphoreGive(g_lock);
   }
+  // Only after the new readings are in place. Counting up first let the
+  // screen see the new number, repaint from the old readings, and then have
+  // no reason to repaint again.
+  g_lastGoodMs = millis();
+  g_version++;
   return true;
 }
 
@@ -426,7 +491,7 @@ static void weatherTask(void *param) {
   }
   logLine("Weather task started");
   g_wantRefresh = true;
-  g_wantGeocode = !cfg.haveLocation;
+  g_wantGeocode = !snapshotWhere().haveLocation;
 
   for (;;) {
     // A refresh interval of zero means the weather is only fetched when the
@@ -451,15 +516,23 @@ static void weatherTask(void *param) {
       g_busy = true;
       g_lastFetchMs = millis();
 
-      if (g_wantGeocode || !cfg.haveLocation) {
-        setStatus("Looking up " + cfg.zip + "...");
-        if (lookUpLocation()) g_wantGeocode = false;
+      Where w = snapshotWhere();
+      if (g_wantGeocode || !w.haveLocation) {
+        // Cleared before the lookup, not after it. A new postcode saved while
+        // the lookup runs sets this again, and clearing it afterwards used to
+        // wipe that request out.
+        g_wantGeocode = false;
+        w.haveLocation = false;
+        setStatus("Looking up " + w.zip + "...");
+        if (!lookUpLocation(w)) {
+          if (!w.haveLocation) g_wantGeocode = true;   // try again next time
+        }
       }
 
       bool ok = false;
-      if (cfg.haveLocation) {
+      if (w.haveLocation) {
         setStatus("Fetching forecast...");
-        ok = fetchForecast();
+        ok = fetchForecast(w);
       }
       g_busy = false;
 
@@ -536,9 +609,8 @@ void weatherRequestOnDemand() {
 }
 
 void weatherRequestRefresh(bool lookUpLocationAgain) {
-  if (lookUpLocationAgain) {
-    g_wantGeocode    = true;
-    cfg.haveLocation = false;
-  }
+  // The main loop has already cleared the saved position in cfg when the
+  // postcode changed. This only has to tell the task to look it up.
+  if (lookUpLocationAgain) g_wantGeocode = true;
   g_wantRefresh = true;
 }

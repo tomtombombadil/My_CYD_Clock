@@ -162,6 +162,14 @@ static Note     g_notes[MAX_TUNE_NOTES];
 static uint16_t g_noteCount  = 0;
 static uint32_t g_notesMs    = 0;   // how long one pass takes, the tail included
 
+// Guards the three above. Loading a new tune rewrites them, and the sound task
+// on the other core may be halfway through reading them for the tune that is
+// already playing: pressing Hear it twice, or an alarm going off during a
+// preview. Without this it would play a mixture of the two, or hold a note.
+// The sound task only ever tries this lock and never waits on it, so it
+// simply skips one two millisecond step while a tune is being loaded.
+static SemaphoreHandle_t g_tuneLock = nullptr;
+
 // Reads the chosen ringtone into g_notes. Returns how long one pass lasts.
 static uint32_t loadTune(uint8_t sound, const char *override = nullptr) {
   char line[MAX_RTTTL_CHARS];
@@ -214,10 +222,21 @@ static void soundAt(uint32_t into, uint8_t volume) {
 
 static void soundTask(void *) {
   for (;;) {
+    // The job is read only once the tune lock is held. Reading it first left
+    // a gap: a stop could land between the read and the note being set, and
+    // the note would then be switched on after the stop had switched it off,
+    // with nothing left to switch it off again. A stuck tone. soundStop()
+    // takes the same lock, so now the two can never overlap.
     SoundJob job;
-    portENTER_CRITICAL(&g_jobLock);
-    job = g_job;
-    portEXIT_CRITICAL(&g_jobLock);
+    job.playing = false;
+    if (xSemaphoreTake(g_tuneLock, 0) == pdTRUE) {
+      portENTER_CRITICAL(&g_jobLock);
+      job = g_job;
+      portEXIT_CRITICAL(&g_jobLock);
+    } else {
+      vTaskDelay(1);                  // a tune is being loaded; look again soon
+      continue;
+    }
 
     if (job.playing) {
       uint32_t now = millis();
@@ -232,15 +251,26 @@ static void soundTask(void *) {
         soundAt(now - job.startedMs, job.volume);
       }
     }
-    // Never zero: a delay of no ticks would spin this core flat out.
-    TickType_t nap = pdMS_TO_TICKS(2);
-    vTaskDelay(nap ? nap : 1);
+    xSemaphoreGive(g_tuneLock);
+    // Every two milliseconds while something plays, for the fades and the
+    // fast notes. When nothing is playing there is no reason to wake five
+    // hundred times a second, and twenty milliseconds is still well inside
+    // the fade at the start of the first note.
+    TickType_t nap = pdMS_TO_TICKS(job.playing ? 2 : 20);
+    vTaskDelay(nap ? nap : 1);        // never zero, that would spin the core
   }
 }
 
 static void soundStart(uint8_t sound, uint8_t volume, bool once,
                        const char *override = nullptr) {
-  uint32_t span = loadTune(sound, override);   // before the task is told to look
+  // Stop whatever is playing, then wait for the sound task to finish the step
+  // it may be in the middle of before the notes are replaced.
+  portENTER_CRITICAL(&g_jobLock);
+  g_job.playing = false;
+  portEXIT_CRITICAL(&g_jobLock);
+  xSemaphoreTake(g_tuneLock, portMAX_DELAY);
+  uint32_t span = loadTune(sound, override);
+  xSemaphoreGive(g_tuneLock);
   uint32_t now  = millis();
   portENTER_CRITICAL(&g_jobLock);
   g_job.sound     = sound;
@@ -256,10 +286,12 @@ static void soundStart(uint8_t sound, uint8_t volume, bool once,
 }
 
 static void soundStop() {
+  xSemaphoreTake(g_tuneLock, portMAX_DELAY);   // waits out the current step
   portENTER_CRITICAL(&g_jobLock);
   g_job.playing = false;
   portEXIT_CRITICAL(&g_jobLock);
   toneStop();
+  xSemaphoreGive(g_tuneLock);
 }
 
 void alarmsBegin() {
@@ -268,7 +300,8 @@ void alarmsBegin() {
   pinMode(PIN_LED_BLUE,  OUTPUT);
   ledSet(0, 0, 0);
 
-  loadTune(cfg.alarmSound);
+  g_tuneLock = xSemaphoreCreateMutex();
+  loadTune(cfg.alarmSound);           // the sound task does not exist yet
   ledcSetup(PWM_CHANNEL_SPEAKER, BEEP_HZ, TONE_BITS);
   ledcAttachPin(PIN_SPEAKER, PWM_CHANNEL_SPEAKER);
   toneStop();
@@ -321,6 +354,7 @@ void alarmPreviewSound(uint8_t sound, uint8_t volume, const char *customLine) {
 // Runs the light pattern while an alarm is going off. The sound is not here:
 // it belongs to soundTask(), which was started when the alarm was.
 static void runEffects() {
+  if (g_activeIndex < 0 || g_activeIndex >= ALARM_COUNT) return;
   const AlarmConfig &a = cfg.alarms[g_activeIndex];
   uint32_t inCycle = (millis() - g_startedMs) % LED_CYCLE_MS;
 

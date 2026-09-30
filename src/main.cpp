@@ -160,9 +160,11 @@ static bool runSetupPortal() {
   // Write the network down straight away, before anything else can go wrong.
   // Losing it here is what used to send the clock round the setup loop again.
   if (connected) {
+    cfgLock();
     cfg.wifiSsid = WiFi.SSID();
     cfg.wifiPass = WiFi.psk();
-    settingsSave();
+    cfgUnlock();
+    settingsSave(cfg);                  // nothing else is running yet
     logLine("Setup finished, joined " + cfg.wifiSsid + " and saved it");
   }
 

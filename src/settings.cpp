@@ -33,6 +33,29 @@ static void releaseStorage() {
   if (storageLock) xSemaphoreGive(storageLock);
 }
 
+// The lock around cfg itself. Created before any task starts, the first time
+// anything asks for it, which is settingsLoad() during start up.
+static SemaphoreHandle_t cfgMutex = nullptr;
+
+static void ensureCfgMutex() {
+  if (!cfgMutex) cfgMutex = xSemaphoreCreateMutex();
+}
+
+void cfgLock() {
+  ensureCfgMutex();
+  if (cfgMutex) xSemaphoreTake(cfgMutex, portMAX_DELAY);
+}
+
+void cfgUnlock() {
+  if (cfgMutex) xSemaphoreGive(cfgMutex);
+}
+
+bool cfgTryLock(uint32_t waitMs) {
+  ensureCfgMutex();
+  if (!cfgMutex) return false;
+  return xSemaphoreTake(cfgMutex, pdMS_TO_TICKS(waitMs)) == pdTRUE;
+}
+
 // Builds a key name for one field of one alarm, for example "a0h" for the
 // hour of the first alarm.
 static String alarmKey(int index, const char *field) {
@@ -43,6 +66,7 @@ static String alarmKey(int index, const char *field) {
 }
 
 void settingsLoad() {
+  ensureCfgMutex();
   claimStorage();
   prefs.begin(NAMESPACE, true);   // true means open read only
 
@@ -110,51 +134,51 @@ void settingsLoad() {
   if (cfg.nightBrightness < 2) cfg.nightBrightness = 2;
 }
 
-void settingsSave() {
+void settingsSave(const Settings &s) {
   claimStorage();
   prefs.begin(NAMESPACE, false);
 
-  prefs.putString("wifissid", cfg.wifiSsid);
-  prefs.putString("wifipass", cfg.wifiPass);
+  prefs.putString("wifissid", s.wifiSsid);
+  prefs.putString("wifipass", s.wifiPass);
 
-  prefs.putString("ntp",    cfg.ntpServer);
-  prefs.putString("tz",     cfg.timeZone);
-  prefs.putString("tzname", cfg.timeZoneName);
+  prefs.putString("ntp",    s.ntpServer);
+  prefs.putString("tz",     s.timeZone);
+  prefs.putString("tzname", s.timeZoneName);
 
-  prefs.putString("zip",     cfg.zip);
-  prefs.putString("country", cfg.country);
-  prefs.putDouble("lat",     cfg.latitude);
-  prefs.putDouble("lon",     cfg.longitude);
-  prefs.putBool("haveloc",   cfg.haveLocation);
-  prefs.putString("place",   cfg.placeName);
-  prefs.putBool("metric",    cfg.metric);
-  prefs.putBool("wxcur",     cfg.showCurrentScreen);
-  prefs.putBool("wxhr",      cfg.showHourlyScreen);
-  prefs.putBool("wxday",     cfg.showDailyScreen);
-  prefs.putUChar("wxdays",   cfg.forecastDays);
+  prefs.putString("zip",     s.zip);
+  prefs.putString("country", s.country);
+  prefs.putDouble("lat",     s.latitude);
+  prefs.putDouble("lon",     s.longitude);
+  prefs.putBool("haveloc",   s.haveLocation);
+  prefs.putString("place",   s.placeName);
+  prefs.putBool("metric",    s.metric);
+  prefs.putBool("wxcur",     s.showCurrentScreen);
+  prefs.putBool("wxhr",      s.showHourlyScreen);
+  prefs.putBool("wxday",     s.showDailyScreen);
+  prefs.putUChar("wxdays",   s.forecastDays);
 
-  prefs.putULong("fg",   cfg.colorText);
-  prefs.putULong("bg",   cfg.colorBack);
-  prefs.putUChar("face",  cfg.clockFace);
-  prefs.putBool("ghost",  cfg.ghostSegments);
-  prefs.putBool("invert", cfg.invertColors);
-  prefs.putUChar("stroke", cfg.segmentStroke);
-  prefs.putBool("h24",   cfg.use24Hour);
-  prefs.putBool("secs",  cfg.showSeconds);
-  prefs.putBool("ampm",  cfg.showAmPm);
-  prefs.putBool("blink", cfg.blinkColon);
-  prefs.putBool("date",  cfg.showDate);
+  prefs.putULong("fg",   s.colorText);
+  prefs.putULong("bg",   s.colorBack);
+  prefs.putUChar("face",  s.clockFace);
+  prefs.putBool("ghost",  s.ghostSegments);
+  prefs.putBool("invert", s.invertColors);
+  prefs.putUChar("stroke", s.segmentStroke);
+  prefs.putBool("h24",   s.use24Hour);
+  prefs.putBool("secs",  s.showSeconds);
+  prefs.putBool("ampm",  s.showAmPm);
+  prefs.putBool("blink", s.blinkColon);
+  prefs.putBool("date",  s.showDate);
 
-  prefs.putUChar("bri",   cfg.brightness);
-  prefs.putUChar("nbri",  cfg.nightBrightness);
-  prefs.putBool("autodim", cfg.autoDim);
+  prefs.putUChar("bri",   s.brightness);
+  prefs.putUChar("nbri",  s.nightBrightness);
+  prefs.putBool("autodim", s.autoDim);
 
-  prefs.putUChar("alsound", cfg.alarmSound);
-  prefs.putUChar("alvol",   cfg.alarmVolume);
-  prefs.putString("alcustom", cfg.customRingtone);
+  prefs.putUChar("alsound", s.alarmSound);
+  prefs.putUChar("alvol",   s.alarmVolume);
+  prefs.putString("alcustom", s.customRingtone);
 
   for (int i = 0; i < ALARM_COUNT; i++) {
-    const AlarmConfig &a = cfg.alarms[i];
+    const AlarmConfig &a = s.alarms[i];
     prefs.putBool(alarmKey(i, "en").c_str(), a.enabled);
     prefs.putUChar(alarmKey(i, "h").c_str(),  a.hour);
     prefs.putUChar(alarmKey(i, "m").c_str(),  a.minute);
@@ -168,13 +192,14 @@ void settingsSave() {
   releaseStorage();
 }
 
-void settingsSaveLocation() {
+void settingsSaveLocation(double latitude, double longitude,
+                          const String &placeName, bool haveLocation) {
   claimStorage();
   prefs.begin(NAMESPACE, false);
-  prefs.putDouble("lat",   cfg.latitude);
-  prefs.putDouble("lon",   cfg.longitude);
-  prefs.putBool("haveloc", cfg.haveLocation);
-  prefs.putString("place", cfg.placeName);
+  prefs.putDouble("lat",   latitude);
+  prefs.putDouble("lon",   longitude);
+  prefs.putBool("haveloc", haveLocation);
+  prefs.putString("place", placeName);
   prefs.end();
   releaseStorage();
 }
@@ -194,9 +219,12 @@ void settingsFactoryReset() {
   releaseStorage();
 }
 
+// Called on the main loop, the only task that changes cfg as a whole.
 void settingsForgetWifi() {
+  cfgLock();
   cfg.wifiSsid = "";
   cfg.wifiPass = "";
+  cfgUnlock();
   claimStorage();
   prefs.begin(NAMESPACE, false);
   prefs.putString("wifissid", "");

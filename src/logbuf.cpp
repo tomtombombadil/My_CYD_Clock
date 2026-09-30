@@ -26,30 +26,49 @@ RTC_NOINIT_ATTR static char     keepLog[KEEP_LOG_BYTES];
 // name of the task that was hogging the core and would not let go. That name
 // is worth far more than "something stopped responding", so it is written
 // here, into the memory that survives the restart, and read back below.
+//
+// Both cores are recorded, not just core 0. The watchdog watches two things:
+// the idle task on core 0, which never gets to run if something on core 0 is
+// hogging it, and the web server's task for as long as it is answering a
+// request. The web server can be on either core. If it is the one that took
+// too long, whatever core 0 happened to be running at that instant is an
+// innocent bystander, often the idle task itself, and recording only core 0
+// would point the search in the wrong direction.
 RTC_NOINIT_ATTR static uint32_t keepStallMagic;
-RTC_NOINIT_ATTR static char     keepStallTask[20];
+RTC_NOINIT_ATTR static char     keepStallTask[20];    // core 0
+RTC_NOINIT_ATTR static char     keepStallTask1[20];   // core 1
 
-#define STALL_MAGIC 0x57415447UL
+#define STALL_MAGIC 0x57415448UL      // changed, so a 1.13.1 record is not misread
 
-static String g_stalledTask = "";
+static String g_stalledTask  = "";
+static String g_stalledTask1 = "";
+
+static void copyTaskName(char *dst, size_t size, TaskHandle_t task) {
+  const char *name = task ? pcTaskGetName(task) : nullptr;
+  if (!name) name = "unknown";
+  size_t i = 0;
+  for (; i < size - 1 && name[i]; i++) dst[i] = name[i];
+  dst[i] = 0;
+}
 
 // The watchdog calls this from inside its interrupt just before it panics.
 // Nothing clever is allowed in here: no logging, no allocating, no waiting.
-// Copying twenty characters is about the limit, and twenty characters is all
-// this needs.
+// Copying two short names is about the limit, and that is all this needs.
 extern "C" void esp_task_wdt_isr_user_handler(void) {
-  TaskHandle_t hog = xTaskGetCurrentTaskHandleForCPU(0);
-  const char  *name = hog ? pcTaskGetName(hog) : nullptr;
-  if (!name) name = "unknown";
-  size_t i = 0;
-  for (; i < sizeof(keepStallTask) - 1 && name[i]; i++) keepStallTask[i] = name[i];
-  keepStallTask[i] = 0;
-  keepStallMagic   = STALL_MAGIC;
+  copyTaskName(keepStallTask,  sizeof(keepStallTask),  xTaskGetCurrentTaskHandleForCPU(0));
+  copyTaskName(keepStallTask1, sizeof(keepStallTask1), xTaskGetCurrentTaskHandleForCPU(1));
+  keepStallMagic = STALL_MAGIC;
 }
 
 // ---------------------------------------------------------------------------
 
-static String g_lines[LOG_LINE_COUNT];
+// The lines themselves, in fixed slots. They used to be Strings, which meant
+// every new line freed one block of memory and asked for another of a
+// different size, all day long. Fixed slots never touch the heap. They cost
+// about 13 KB, set aside once at start up, and are wide enough for the
+// longest line this writes, the restart summary.
+#define LOG_LINE_CHARS 256
+static char g_lines[LOG_LINE_COUNT][LOG_LINE_CHARS];
 static int    g_next  = 0;
 static int    g_count = 0;
 static SemaphoreHandle_t g_lock = nullptr;
@@ -104,8 +123,10 @@ void logBegin() {
     g_previousRun.trim();
 
     if (keepStallMagic == STALL_MAGIC) {
-      keepStallTask[sizeof(keepStallTask) - 1] = 0;
-      g_stalledTask = String(keepStallTask);
+      keepStallTask[sizeof(keepStallTask) - 1]   = 0;
+      keepStallTask1[sizeof(keepStallTask1) - 1] = 0;
+      g_stalledTask  = String(keepStallTask);
+      g_stalledTask1 = String(keepStallTask1);
     }
   }
   keepStallMagic = 0;
@@ -126,29 +147,27 @@ String logRestartSummary() {
            " seconds and its lowest free memory was " + String(g_previousLow) +
            " bytes";
     if (g_stalledTask.length()) {
-      out += ". The task holding core 0 when the watchdog fired was \"" +
-             g_stalledTask + "\"";
+      out += ". When the watchdog fired, core 0 was running \"" + g_stalledTask +
+             "\" and core 1 was running \"" + g_stalledTask1 + "\"";
     }
   }
   return out;
 }
 
-static String stamp() {
+// Writes the time, or the seconds since start up if the time is not known yet.
+static void stamp(char *buf, size_t size) {
   struct tm now;
   if (getLocalTime(&now, 5) && (now.tm_year + 1900) > 2020) {
-    char buf[12];
-    strftime(buf, sizeof(buf), "%H:%M:%S", &now);
-    return String(buf);
+    strftime(buf, size, "%H:%M:%S", &now);
+    return;
   }
-  char buf[12];
-  snprintf(buf, sizeof(buf), "+%lus", (unsigned long)(millis() / 1000UL));
-  return String(buf);
+  snprintf(buf, size, "+%lus", (unsigned long)(millis() / 1000UL));
 }
 
 // Copies a line into the memory that survives a restart, oldest bytes being
 // overwritten first.
-static void keepAppend(const String &entry) {
-  for (unsigned int i = 0; i < entry.length(); i++) {
+static void keepAppend(const char *entry) {
+  for (size_t i = 0; entry[i]; i++) {
     keepLog[keepPos] = entry[i];
     keepPos = (keepPos + 1) % KEEP_LOG_BYTES;
   }
@@ -157,13 +176,16 @@ static void keepAppend(const String &entry) {
 }
 
 void logLine(const String &text) {
-  String entry = stamp() + "  " + text;
+  char when[16];
+  stamp(when, sizeof(when));
+  char entry[LOG_LINE_CHARS];
+  snprintf(entry, sizeof(entry), "%s  %s", when, text.c_str());   // long lines are cut short
   Serial.println(entry);
 
   if (!g_lock) return;
   if (xSemaphoreTake(g_lock, pdMS_TO_TICKS(200)) != pdTRUE) return;
 
-  g_lines[g_next] = entry;
+  memcpy(g_lines[g_next], entry, sizeof(entry));
   g_next = (g_next + 1) % LOG_LINE_COUNT;
   if (g_count < LOG_LINE_COUNT) g_count++;
 
@@ -204,7 +226,7 @@ String logGetAll() {
 void logClear() {
   if (!g_lock) return;
   if (xSemaphoreTake(g_lock, pdMS_TO_TICKS(300)) != pdTRUE) return;
-  for (int i = 0; i < LOG_LINE_COUNT; i++) g_lines[i] = "";
+  for (int i = 0; i < LOG_LINE_COUNT; i++) g_lines[i][0] = 0;
   g_next  = 0;
   g_count = 0;
   g_previousRun = "";

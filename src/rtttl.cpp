@@ -39,6 +39,9 @@ static int stepForLetter(char c) {
 
 static uint16_t noteHz(int step, int octave) {
   if (step < 0) return 0;
+  // B sharp is the C of the next octave up, and would otherwise read one past
+  // the end of the table.
+  if (step >= 12) { step -= 12; octave++; }
   if (octave < 4) {                       // shift down from the table
     uint32_t hz = OCTAVE4[step];
     for (int i = octave; i < 4; i++) hz /= 2;
@@ -53,10 +56,18 @@ static void skipSpaces(const char *&p) {
   while (*p == ' ' || *p == '\t' || *p == '\r' || *p == '\n') p++;
 }
 
+// Stops growing past 10000 but still steps over every digit. A pasted line
+// with a long run of digits would otherwise overflow, and a huge octave number
+// made noteHz() loop that many times: o=2000000000 kept the chip busy for half
+// a minute, long enough for the watchdog to restart it.
 static int readNumber(const char *&p) {
   int n = 0;
   bool any = false;
-  while (*p >= '0' && *p <= '9') { n = n * 10 + (*p - '0'); p++; any = true; }
+  while (*p >= '0' && *p <= '9') {
+    if (n < 10000) n = n * 10 + (*p - '0');
+    p++;
+    any = true;
+  }
   return any ? n : -1;
 }
 
@@ -101,6 +112,7 @@ uint16_t rtttlParse(const char *text, Note *out, uint16_t maxNotes, String *name
   if (bpm <= 0)         bpm = 63;
   if (defDuration <= 0) defDuration = 4;
   if (defOctave <= 0)   defOctave = 6;
+  defOctave = constrain(defOctave, 1, 9);
 
   // A whole note is four beats.
   const uint32_t wholeMs = (uint32_t)(4 * 60000UL) / (uint32_t)bpm;
@@ -134,7 +146,7 @@ uint16_t rtttlParse(const char *text, Note *out, uint16_t maxNotes, String *name
     int octave = defOctave;
     skipSpaces(p);
     int explicitOctave = readNumber(p);
-    if (explicitOctave > 0) octave = explicitOctave;
+    if (explicitOctave > 0) octave = constrain(explicitOctave, 1, 9);
 
     if (*p == '.') { dotted = true; p++; }               // the dot is sometimes last
 

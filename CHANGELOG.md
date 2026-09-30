@@ -5,6 +5,79 @@ For what the project is and how to install it, see the [README](README.md).
 
 ---
 
+## What changed in 1.13.2
+
+Everything in this release came out of a review of the whole program for things
+that could crash it, hang it, or quietly do the wrong thing. None of it changes
+what the clock looks like or how it is used.
+
+**The settings page no longer changes things behind the clock's back.** The web
+server answers each request on a task of its own, which can run on either core,
+while the main loop is drawing on one core and the weather task is working on
+the other. Pressing Save used to rewrite the settings, redraw the screen and
+change the colour inversion right there, in the middle of whatever the other two
+were doing. Two things go wrong with that. A text setting being replaced on one
+core while another core is copying it hands the copier memory that has just been
+freed, and the display library cannot cope with two tasks talking to the screen
+at once. Either can crash the chip.
+
+Now a request only works out what was asked for, puts it in a mailbox and
+replies. The main loop picks it up on its next pass, a few milliseconds later,
+and does the work itself. The same goes for the alarm Test buttons, Hear it,
+restart, forget WiFi and factory reset. The settings themselves have a lock, and
+anything that reads their text from another task takes a copy under it first.
+
+**Changing the postcode during a lookup now works.** If a new postcode was saved
+while the old one was still being looked up, the old lookup finished, saved the
+old town's position under the new postcode, marked it as known, and cancelled
+the request to look the new one up. Because the position is saved, that stuck
+for good. The weather task now works from a copy of the settings taken at the
+start of each fetch, and throws a result away if the postcode changed while it
+was on its way.
+
+**The watchdog now records both cores.** 1.13.1 recorded only what core 0 was
+running when the watchdog fired. But the watchdog also times the web server
+while it answers a request, and the web server can be on either core. If that
+is what took too long, core 0 was running something innocent at the time, often
+its own idle task, and the record would have pointed the wrong way. The restart
+line now names both:
+
+```
+When the watchdog fired, core 0 was running "xyz" and core 1 was running "abc"
+```
+
+If core 0 names a real task, that task hogged it. If core 0 says `IDLE0` and
+either core says `async_tcp`, a request to the settings page took too long.
+
+**A stuck tone, and two tunes at once.** The sound task read what it was meant
+to be playing, then set the note. An alarm dismissed in between had its note
+switched on after the stop, with nothing left to switch it off. Separately,
+starting a new sound while another was playing replaced the notes while the
+sound task was still reading them. The notes and the job are now read and
+changed under one lock. The sound task also sleeps longer when nothing is
+playing, instead of waking five hundred times a second for no reason.
+
+**Ringtone lines that could crash or freeze the clock.** A `b#` read one past
+the end of the table of notes. A huge octave number, which only a mangled
+ringtone line would have, made the note calculation loop that many times:
+`o=2000000000` would have kept the chip busy for half a minute, long enough for
+the watchdog to restart it. Octaves are now held between 1 and 9, and a long
+ringtone is trimmed when it is saved rather than silently failing to save.
+
+**Less needless work.** The clock face used to work its whole layout out again
+about a hundred times a second, measuring every numeral and formatting the date
+into fresh strings each time, when the picture changes at most once a second.
+It now only does that when something on it can actually change. The activity
+log keeps its lines in fixed slots instead of strings, so logging no longer
+chips away at free memory all day.
+
+**The weather screen could miss fresh readings.** The count the screen watches
+to know when to repaint went up before the new readings were in place, so the
+screen could repaint from the old ones and then have no reason to repaint
+again.
+
+---
+
 ## What changed in 1.13.1
 
 **Version numbers.** The middle number was being bumped for everything,

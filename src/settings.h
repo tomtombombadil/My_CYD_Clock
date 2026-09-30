@@ -96,9 +96,26 @@ struct Settings {
 // The one and only copy of the settings, shared by every part of the program.
 extern Settings cfg;
 
+// Three tasks can reach cfg: the main loop, the weather task and the web
+// server. Only the main loop ever changes cfg as a whole, and it does that
+// while holding this lock. The other two hold it for as long as it takes to
+// copy out the text fields they need, or, for the weather task, to write back
+// the position it looked up. Text fields are the reason this matters: a
+// String being replaced on one core while another core copies it hands the
+// copier memory that has just been freed.
+void cfgLock();
+void cfgUnlock();
+// A bounded version for the web server, which must never wait for long
+// because the watchdog is timing every request it handles.
+bool cfgTryLock(uint32_t waitMs);
+
 void settingsLoad();
-void settingsSave();
-void settingsSaveLocation();   // saves only the looked up latitude, longitude and place name
+// Writes a whole set of settings to storage. Pass the main loop's own copy so
+// the slow flash write happens outside the cfg lock.
+void settingsSave(const Settings &s);
+// Saves only the looked up position.
+void settingsSaveLocation(double latitude, double longitude,
+                          const String &placeName, bool haveLocation);
 void settingsForgetWifi();
 
 // Throws away every stored setting. The clock then starts up with its

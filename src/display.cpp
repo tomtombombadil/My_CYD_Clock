@@ -529,6 +529,22 @@ static bool blockMoved(const TimeBlock &a, const TimeBlock &b) {
 }
 
 static void renderClock(struct tm *t) {
+  // The loop comes round about a hundred times a second, and almost every one
+  // of those passes has nothing new to show. Working the whole layout out
+  // again each time, measuring every numeral and formatting the date into
+  // fresh strings, was nearly all of core 1's work and a steady churn of small
+  // memory blocks. Only go further when something on the screen can change.
+  static int  lastMin = -1, lastSec = -1, lastHour = -1;
+  static bool lastColon = false;
+  bool colonNow = !cfg.blinkColon || ((millis() % 1000UL) < 500UL);
+  if (!g_forceFull && g_blockValid &&
+      t->tm_min == lastMin && t->tm_hour == lastHour &&
+      (!cfg.showSeconds || t->tm_sec == lastSec) && colonNow == lastColon) {
+    return;
+  }
+  lastMin = t->tm_min; lastHour = t->tm_hour; lastSec = t->tm_sec;
+  lastColon = colonNow;
+
   const uint16_t lit   = uiColor(cfg.colorText);
   const uint16_t back  = uiColor(cfg.colorBack);
   const uint16_t unlit = cfg.ghostSegments ? tft.alphaBlend(38, lit, back) : back;
@@ -589,8 +605,7 @@ static void renderClock(struct tm *t) {
   g_seconds = secs;
   g_blockValid = true;
 
-  bool colonLit = true;
-  if (cfg.blinkColon) colonLit = ((millis() % 1000UL) < 500UL);
+  bool colonLit = colonNow;
 
   for (int i = 0; i < block.count; i++) {
     char want = block.text[i];
