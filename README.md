@@ -1,8 +1,9 @@
 # My CYD Clock
 
-A clock for the Cheap Yellow Display. It shows the time in big seven segment
+A clock for the Cheap Yellow Display. It defaults to a retro look imitating seven segment
 numerals, shows the weather when you tap it, and hosts its own settings page on
-your network. No account, no cloud service, no app.
+your network. No account, no cloud service, no app. It uses NIST for NTP time, so you
+never have to set it.
 
 <!-- Drop a photo of your clock in here. Put the file somewhere like docs/photo.jpg
      and change the line below to point at it. A photo does more for a project
@@ -15,9 +16,9 @@ your network. No account, no cloud service, no app.
 
 **[Open the flashing page](https://tomtombombadil.github.io/My_CYD_Clock/)**,
 plug the board into your computer, and click the button for your board. It
-writes the firmware over the USB cable and takes about a minute.
+writes the firmware over the USB cable and takes about 2 minutes.
 
-Chrome or Edge on a desktop computer. Firefox and Safari cannot talk to a USB
+Make sure to use Chrome or Edge browser to flash your CYD. Firefox and Safari cannot talk to a USB
 serial port, and neither can phones.
 
 ---
@@ -49,30 +50,39 @@ The model number is printed on the back of the board.
   and italic. Any text and background colour.
 - **Weather on a tap.** Current conditions, the next four hours, and a three to
   ten day forecast. Tap through them, tap again for the clock.
-- **A settings page** on your own network for everything: colours, clock face,
-  time zone, weather location, alarms, brightness.
+- **A settings page** hit the clock's IP in your browser to configure the clock:
+  colours, clock face, time zone, weather location, alarms, brightness.
 - **Three alarms**, each with its own days, and separate switches for a tone, a
   flashing LED and a flashing screen.
 - **Dims after sunset**, using the real sunrise and sunset times for your
   location.
-- **Sets up from your phone.** No WiFi details are compiled in.
+- **Initial Setup Requires A Device That Can Connect To The Clock's WiFi.**
+  When you first flash the CYD with the clock firmware, it will boot and create
+  its own WiFi SSID called My_CYD_Clock. Connect to it with your laptop or phone
+  and you'll be taken to the setup page, where you select the WiFi SSID that you
+  want the clock to connect to, and enter the SSID's password. The CYD will then
+  connect to that SSID (disabling the My_CYD_Clock SSID). It will briefly show its
+  new IP address so you can go to that in a browser and configure the clock the way
+  you like.
 
 ---
 
 ## Setting it up the first time
 
-1. The clock looks for a network it has used before. On a fresh board there is
-   none, so it makes its own.
+1. The clock looks for a network it has used before. On a fresh flash it won't know
+   any wifi credentials, so it will make it's own ad hoc wifi network for you to join.
 2. The screen tells you to join **`My_CYD_Clock`** on your phone. It is open,
    with no password.
 3. A setup page should open by itself. If it does not, browse to the address on
-   the screen. Pick your network, type the password, press Connect.
-4. The clock restarts and shows the address of its settings page.
+   the CYD screen. Pick your WiFi network, type the password, press Connect.
+4. The clock restarts and shows its new address on the WiFi network you entered.
+5. Go to that address in your browser and you'll get the Settings page for the CYD.
 
-Touch and hold the screen at any time to see that address again.
+Touch and hold the screen (long press) at any time to see that address again.
 
 If a setup page does not open on its own, turning mobile data off usually fixes
-it. Phones notice that a network has no internet and quietly go back to mobile.
+it. Your phone may notice that the CYD's ad hoc network has no internet and
+default back to your mobile connection.
 
 ---
 
@@ -80,9 +90,9 @@ it. Phones notice that a network has no internet and quietly go back to mobile.
 
 | Action | What happens |
 |---|---|
-| Tap | Next screen: clock, then whichever weather screens you have on, then back to the clock |
+| Tap | Next screen - cycles through the available/enabled screens, clock & weather|
 | Touch and hold | Status page, with the address for the settings page and a factory reset button |
-| Tap during an alarm | Stops it |
+| Tap during an alarm | Cancels the alarm |
 
 Weather screens return to the clock after a minute, the status page after 25
 seconds.
@@ -143,8 +153,8 @@ explains how to host that page from your own copy of this repository.
 
 ## How it works
 
-**Time** comes from your chosen server, with `pool.ntp.org` and
-`time.google.com` as backups.
+**Time** comes from your chosen NTP time server. It defaults to time.nist.gov,
+with `pool.ntp.org` and `time.google.com` as backups.
 
 **Weather** comes from [Open-Meteo](https://open-meteo.com/), which is free and
 needs no account or key, so the clock works the moment you type a postcode. The
@@ -156,15 +166,8 @@ The forecast is fetched **only when it is going to be used**: once at startup so
 the screens are not empty, and again whenever you tap through to a weather
 screen. A reading under thirty seconds old is reused. If dim after sunset is on,
 it also fetches twice a day, because sunrise and sunset times only arrive with a
-forecast. There is no polling on a timer.
-
-Fetching happens on a separate background task, which is why the seconds never
-stutter while it waits.
-
-It is fetched over a plain connection rather than an encrypted one. Setting up
-encryption is the slowest part of a request on this chip, one to three seconds,
-and a public forecast for a postcode has nothing private in it. That is what
-makes a tap produce fresh weather before you notice.
+forecast. There is no polling on a timer. This keeps pointless network traffic
+to a minimum and doesn't needlessly spam the free weather server.
 
 ---
 
