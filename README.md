@@ -5,7 +5,14 @@ numerals, shows the weather when you tap it, and hosts its own settings page on
 your network. No account, no cloud service, no app. It uses NIST for NTP time, so you
 never have to set it.
 
-<img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/clock.png" alt="Default Clock Face" width="320" height="240">
+Default Appearance:
+<br><img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/clock.png" alt="Default Clock Face" width="320" height="240"> <br>
+Alternate Time Displays:
+<br><img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/clock-12h-double.png" alt="Clock 12h" width="320" height="240"> <img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/clock-24h.png" alt="24-Hour Clock" width="320" height="240"> <br>
+Weather Displays:
+<br><img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/weather-now.png" alt="Weather" width="320" height="240"> <img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/weather-hourly.png" alt="Hourly Weather" width="320" height="240"> <img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/weather-daily.png" alt="Daily Weather" width="320" height="240"> <br>
+Settings and Other Displays:
+<br><img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/alarm.png" alt="Alarm" width="320" height="240"> <img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/configure.png" alt="Clock Configure Page" width="320" height="240"> <img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/status.png" alt="Clock Status" width="320" height="240"> <br>
 
 ---
 
