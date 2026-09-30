@@ -10,7 +10,7 @@
 #include "boards.h"
 
 #define FW_NAME      "My CYD Clock"
-#define FW_VERSION   "1.13.2"
+#define FW_VERSION   "1.13.3"
 
 // Hardware PWM channels.
 // Channels 0 and 1 share a timer, and channels 2 and 3 share another one. The

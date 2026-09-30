@@ -5,6 +5,47 @@ For what the project is and how to install it, see the [README](README.md).
 
 ---
 
+## What changed in 1.13.3
+
+This one came out of reading the source of the libraries the clock is built on,
+looking for how they behave under the way this program uses them.
+
+**Looking up server names the safe way.** Before every weather fetch the clock
+turns a name like api.open-meteo.com into an address. The WiFi library's usual
+way of doing that calls straight into the network stack from whichever task
+asks. The network stack is only safe to call like that from its own task, and
+in this build nothing stops a second task being in there at the same moment.
+The time sync does its own lookups inside the network stack on its own
+schedule, including in the same second or two after start up that the first
+weather fetch happens. The same function also gives up after fifteen seconds
+while leaving the network stack holding the address of an answer box on a
+stack that no longer exists, so a late answer lands on whatever has moved in
+since.
+
+The weather task now asks the network stack's own task to do the lookup and
+waits for it properly, connects to the address itself, and hands the open
+connection to the web client. Handed an open connection, the web client uses
+it as it is, so it never does a lookup of its own.
+
+**The custom ringtone could erase itself.** The reply that fills in the
+settings page had room for about 390 characters of custom ringtone. The JSON
+library drops anything that does not fit without reporting it, so a longer
+ringtone was simply missing from the page, and the next Save wrote the empty box
+back over it. The reply is now sized to fit whatever ringtone is stored.
+
+**The status reply was nearly full.** The reply behind the Status panel was
+within a few dozen bytes of its limit, and the last large thing in it is the
+restart summary, which 1.13.2 made longer. A long network name or place name
+would have pushed it out, just when it is most wanted. It now has twice the
+room, and both replies log a line if they ever run out again.
+
+**A correction to the notes for 1.13.2** on reading the watchdog line: a task
+that is stuck waiting is not running on either core, so the web server will not
+necessarily be named. If core 0 says `IDLE0`, that alone means it was the web
+server that ran out of time.
+
+---
+
 ## What changed in 1.13.2
 
 Everything in this release came out of a review of the whole program for things
@@ -46,8 +87,12 @@ line now names both:
 When the watchdog fired, core 0 was running "xyz" and core 1 was running "abc"
 ```
 
-If core 0 names a real task, that task hogged it. If core 0 says `IDLE0` and
-either core says `async_tcp`, a request to the settings page took too long.
+How to read it: the watchdog is watching only two things, core 0's idle task
+and the web server while it answers a request. If core 0 names a real task,
+that task hogged core 0 and kept the idle task off it. If core 0 says `IDLE0`,
+the idle task was running fine, so it was the web server that ran out of time.
+It may not be named on either core, because a task stuck waiting for something
+is not running anywhere.
 
 **A stuck tone, and two tunes at once.** The sound task read what it was meant
 to be playing, then set the note. An alarm dismissed in between had its note

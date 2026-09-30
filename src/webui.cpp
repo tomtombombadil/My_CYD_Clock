@@ -137,7 +137,11 @@ static void sendStatus(AsyncWebServerRequest *request) {
   String zip = cfg.zip;
   cfgUnlock();
 
-  DynamicJsonDocument doc(768);
+  // Sized with room to spare. A JSON document that runs out of room drops
+  // whatever does not fit without saying so, and at 768 this was already
+  // nearly full. The last large field is the restart summary, which is the
+  // one line most worth having when the clock has been restarting.
+  DynamicJsonDocument doc(1536);
 
   bool online = (WiFi.status() == WL_CONNECTED);
   doc["online"] = online;
@@ -165,6 +169,7 @@ static void sendStatus(AsyncWebServerRequest *request) {
   doc["heap"]    = (uint32_t)ESP.getFreeHeap();
   doc["version"] = FW_VERSION;
 
+  if (doc.overflowed()) logLine("Status reply ran out of room, some fields are missing");
   String out;
   serializeJson(doc, out);
   request->send(200, "application/json", out);
@@ -178,7 +183,12 @@ static void sendSettings(AsyncWebServerRequest *request) {
   if (!copy) { sendBusy(request); return; }
   const Settings &cfg = *copy;         // everything below reads the copy
 
-  DynamicJsonDocument doc(1536);
+  // The fixed fields take about 1150 bytes. The custom ringtone is on top of
+  // that and can be up to 1200 characters, so the size follows it. At a flat
+  // 1536, a ringtone longer than about 390 characters did not fit and was left
+  // out of the reply without any error. The page then showed it empty, and
+  // the next Save wrote the empty box back, erasing the ringtone.
+  DynamicJsonDocument doc(1536 + cfg.customRingtone.length() + 64);
 
   doc["version"] = FW_VERSION;
   doc["ssid"]    = cfg.wifiSsid.length() ? cfg.wifiSsid : WiFi.SSID();
@@ -230,6 +240,7 @@ static void sendSettings(AsyncWebServerRequest *request) {
     a["screen"] = cfg.alarms[i].useScreen;
   }
 
+  if (doc.overflowed()) logLine("Settings reply ran out of room, some fields are missing");
   String out;
   serializeJson(doc, out);
   delete copy;

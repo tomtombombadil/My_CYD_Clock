@@ -12,6 +12,7 @@
 #include <time.h>
 #include "logbuf.h"
 #include <esp_heap_caps.h>
+#include <lwip/netdb.h>
 
 // The shared copy of the weather. Everything that touches it must hold the
 // lock first, because two tasks can reach it at the same time.
@@ -146,6 +147,49 @@ static String hostFromUrl(const String &url) {
   return host;
 }
 
+// Looks a name up without going through WiFi.hostByName().
+//
+// hostByName() calls straight into the network stack's name lookup from
+// whatever task calls it. The network stack is only safe to call that way from
+// its own task, and in this framework build nothing stops two tasks being in
+// there at once. The time sync looks its servers up inside the network stack
+// on its own schedule, including in the same second or two after start up
+// that the first weather fetch does. hostByName() also gives up after fifteen
+// seconds but leaves the network stack holding the address of its answer box,
+// which is on a stack that has gone by the time a late answer is written
+// into it.
+//
+// lwip_getaddrinfo() asks the network stack's own task to do the lookup and
+// waits for it to finish properly, so neither of those can happen.
+static bool resolveHost(const String &host, IPAddress &out) {
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(hints));
+  hints.ai_family   = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  struct addrinfo *found = nullptr;
+  int err = lwip_getaddrinfo(host.c_str(), nullptr, &hints, &found);
+  if (err != 0 || !found) return false;
+  bool ok = false;
+  if (found->ai_family == AF_INET && found->ai_addr) {
+    const struct sockaddr_in *sa = (const struct sockaddr_in *)found->ai_addr;
+    out = IPAddress((uint32_t)sa->sin_addr.s_addr);
+    ok  = ((uint32_t)out != 0);
+  }
+  lwip_freeaddrinfo(found);
+  return ok;
+}
+
+// The port in a URL, or the usual one for its scheme.
+static uint16_t portFromUrl(const String &url) {
+  int start = url.indexOf("://");
+  start = (start < 0) ? 0 : start + 3;
+  int end = url.indexOf('/', start);
+  if (end < 0) end = url.length();
+  int colon = url.indexOf(':', start);
+  if (colon >= 0 && colon < end) return (uint16_t)url.substring(colon + 1, end).toInt();
+  return url.startsWith("https") ? 443 : 80;
+}
+
 // Fetches a URL and parses the reply as JSON, keeping only the fields listed
 // in the filter. The filter matters: the full forecast reply is bigger than
 // the memory we want to spend on it.
@@ -170,7 +214,7 @@ static bool fetchJson(const String &url, JsonDocument &doc,
   IPAddress resolved;
   String host = hostFromUrl(url);
   uint32_t lookupStart = millis();
-  bool found = WiFi.hostByName(host.c_str(), resolved);
+  bool found = resolveHost(host, resolved);
   uint32_t lookupMs = millis() - lookupStart;
   logLine(String(label) + ": found " + host + " at " +
           (found ? resolved.toString() : String("nowhere")) +
@@ -196,6 +240,19 @@ static bool fetchJson(const String &url, JsonDocument &doc,
     secure->setInsecure();
     started = http.begin(*secure, url);
   } else {
+    // Connect to the address found above, then give the open connection to
+    // the HTTP client. Handed a connection that is already open, it uses it
+    // as it is, and still names the server properly in the request, so it
+    // never does a lookup of its own through hostByName().
+    if (!found) {
+      logLine(String(label) + ": could not find " + host);
+      return false;
+    }
+    if (!plain.connect(resolved, portFromUrl(url), 8000)) {
+      logLine(String(label) + ": could not connect to " + resolved.toString());
+      return false;
+    }
+    plain.setTimeout(15);             // seconds, what the client would have set
     started = http.begin(plain, url);
   }
 
