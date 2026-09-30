@@ -5,7 +5,7 @@ numerals, shows the weather when you tap it, and hosts its own settings page on
 your network. No account, no cloud service, no app. It uses NIST for NTP time, so you
 never have to set it.
 
-<img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/clock.png" alt="Default Clock Face">
+<img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/clock.png" alt="Default Clock Face" width="320" height="240">
 
 ---
 
