@@ -17,15 +17,17 @@ Settings and Other Displays:
 ---
 
 ## NOTE
-There are many versions and revisions of the Cheap Yellow Display (CYD) available.
+
+There are many versions and revisions of the Cheap Yellow Display (CYD) available. 
 This firmware has only been tested on these specific boards:
+
 - 2.8" (ESP32-2432S028RR-ST7789)
-  https://www.amazon.com/dp/B0FX2SFCKV
-- 3.2" & 4.0" Freenove CYDs:
-  3.2" ST7789 IPS
-  4.0" ST7796 
-  https://www.amazon.com/dp/B0FFZ599FJ
-  
+  - [https://www.amazon.com/dp/B0FX2SFCKV](https://www.amazon.com/dp/B0FX2SFCKV)
+- 3.2" Freenove CYD (ST7789 IPS)
+  - [https://www.amazon.com/dp/B0FFZ599FJ](https://www.amazon.com/dp/B0FFZ2Q8BR)
+- 4.0" Freenove CYD (ST7796)
+  - [https://www.amazon.com/dp/B0FFZ599FJ ](https://www.amazon.com/dp/B0FFZ599FJ)
+ 
 It is know working on the 2.8", 3.2", and 4.0" (though, I believe the freenove 3.5" and 4.0" versions are are the same hardware, only a larger screen on the 4.0")
 
 ## Install it without building anything
