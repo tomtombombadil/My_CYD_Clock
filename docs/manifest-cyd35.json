@@ -1,0 +1,16 @@
+{
+  "name": "My CYD Clock  -  3.5 and 4.0 inch  (ESP32-3248S035R)",
+  "version": "1.13.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "firmware/cyd35.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

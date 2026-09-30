@@ -1,0 +1,16 @@
+# PlatformIO's own workspace: downloaded tools, libraries and everything it
+# compiles. Hundreds of megabytes, all of it rebuildable, none of it belongs
+# on GitHub.
+.pio/
+
+# VS Code's own notes about this folder.
+.vscode/
+!.vscode/extensions.json
+
+# The ready to flash files in docs/firmware are deliberately NOT ignored.
+# Those are what the web flashing page hands out, so they have to be committed.
+
+# Copies of the flashable files named for a GitHub release. Those get uploaded
+# to the release itself rather than committed, so they would only be the same
+# 3.7 MB stored twice.
+release-v*/

@@ -1,0 +1,16 @@
+{
+  "name": "My CYD Clock  -  2.8 inch  (ESP32-2432S028R)",
+  "version": "1.13.0",
+  "new_install_prompt_erase": true,
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [
+        {
+          "path": "firmware/cyd28.bin",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

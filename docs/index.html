@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>My CYD Clock</title>
+<meta name="description" content="Install My CYD Clock onto a Cheap Yellow Display straight from this page.">
+<style>
+:root{
+  --bg:#16181d; --card:#22252c; --line:#343842;
+  --ink:#e8eaee; --dim:#9aa0ab; --accent:#4CAF50; --warn:#e67e22;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; padding:0 16px 64px;
+  font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;
+  background:var(--bg); color:var(--ink); line-height:1.55;
+}
+.wrap{max-width:680px;margin:0 auto}
+header{padding:48px 0 8px}
+h1{font-size:30px;margin:0 0 6px;letter-spacing:-.01em}
+.tagline{color:var(--dim);font-size:16px;margin:0}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.07em;
+   color:var(--accent);margin:40px 0 14px}
+p{margin:0 0 14px}
+a{color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;
+      padding:20px;margin-bottom:14px}
+.card h3{margin:0 0 2px;font-size:17px}
+.card .sub{color:var(--dim);font-size:13px;margin:0 0 16px}
+button.install{
+  background:var(--accent);color:#fff;border:0;border-radius:8px;
+  padding:13px 22px;font-size:15px;font-weight:600;cursor:pointer;
+  font-family:inherit;
+}
+button.install:hover{background:#43a047}
+.msg{background:#2a2118;border:1px solid #5a4325;border-left:4px solid var(--warn);
+     border-radius:8px;padding:14px 16px;margin:0 0 20px;font-size:14px}
+.msg strong{color:var(--warn)}
+ol,ul{margin:0 0 14px;padding-left:22px}
+li{margin-bottom:7px}
+code{background:#12141a;border:1px solid var(--line);border-radius:4px;
+     padding:1px 6px;font-size:13px}
+.note{color:var(--dim);font-size:13px}
+footer{margin-top:52px;padding-top:20px;border-top:1px solid var(--line);
+       color:var(--dim);font-size:13px}
+esp-web-install-button{--esp-tools-button-color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>My CYD Clock</h1>
+  <p class="tagline">A clock for the Cheap Yellow Display. Big numbers, tap for
+  the weather, and a settings page on your own network.</p>
+</header>
+
+<div class="msg" id="browser-note">
+  <strong>You need Chrome or Edge on a computer.</strong> This page talks to the
+  board over its USB cable, and only those browsers can do that. Firefox and
+  Safari cannot, and neither can phones or tablets.
+</div>
+
+<div class="msg" id="local-file-note" style="display:none">
+  <strong>This page will not work opened straight from your hard drive.</strong>
+  Installing will get as far as asking which COM port to use and then fail with
+  <em>Failed to download manifest</em>.
+  <p style="margin:10px 0 0">Talking to the USB port is allowed from a local
+  file, but reading the firmware files next to this page is not, which is a
+  browser security rule and nothing to do with the board.</p>
+  <p style="margin:10px 0 0">Two ways round it. Put this folder on GitHub Pages,
+  which is what it is meant for. Or, to try it out on this computer first,
+  double click <code>preview.bat</code> in the project folder: it serves this
+  page properly and opens it for you.</p>
+</div>
+
+<h2>Install it</h2>
+
+<p>Plug the board into your computer with a USB cable that carries data, then
+pick your board below. Charge-only cables look identical and will not work.</p>
+
+<div class="card">
+  <h3>2.8 inch</h3>
+  <p class="sub">ESP32-2432S028R &middot; 240 x 320</p>
+  <esp-web-install-button manifest="manifest-cyd28.json">
+    <button class="install" slot="activate">Install on the 2.8 inch board</button>
+    <span slot="unsupported" class="note">Your browser cannot do this. Use Chrome or Edge on a computer.</span>
+    <span slot="not-allowed" class="note">This only works over a secure connection.</span>
+  </esp-web-install-button>
+</div>
+
+<div class="card">
+  <h3>3.2 inch</h3>
+  <p class="sub">ESP32-2432S032R &middot; 240 x 320</p>
+  <esp-web-install-button manifest="manifest-cyd32.json">
+    <button class="install" slot="activate">Install on the 3.2 inch board</button>
+    <span slot="unsupported" class="note">Your browser cannot do this. Use Chrome or Edge on a computer.</span>
+    <span slot="not-allowed" class="note">This only works over a secure connection.</span>
+  </esp-web-install-button>
+</div>
+
+<div class="card">
+  <h3>3.5 inch and 4.0 inch</h3>
+  <p class="sub">ESP32-3248S035R &middot; 320 x 480 &middot; the 4.0 inch board
+  uses the same panel</p>
+  <esp-web-install-button manifest="manifest-cyd35.json">
+    <button class="install" slot="activate">Install on the 3.5 or 4.0 inch board</button>
+    <span slot="unsupported" class="note">Your browser cannot do this. Use Chrome or Edge on a computer.</span>
+    <span slot="not-allowed" class="note">This only works over a secure connection.</span>
+  </esp-web-install-button>
+</div>
+
+<p class="note">The model number is printed on the back of the board. If you pick
+the wrong one the screen will stay black or show nonsense, which does no harm:
+come back and install the right one.</p>
+
+<h2>What happens when you click</h2>
+
+<ol>
+  <li>Your browser asks which device to connect to. Pick the one that mentions
+      <code>CH340</code>, <code>CP210x</code>, <code>USB Serial</code> or a
+      <code>COM</code> number.</li>
+  <li>It offers to erase the board first. See below.</li>
+  <li>It writes the firmware, which takes about a minute.</li>
+  <li>The clock starts up and asks you to set up WiFi.</li>
+</ol>
+
+<h2>Should you tick Erase?</h2>
+
+<p><strong>Installing this for the first time: yes.</strong>
+<strong>Updating a clock you already set up: no.</strong></p>
+
+<p>Erase wipes the whole memory chip. On this board that is the firmware, which
+is about to be replaced anyway, and a small area holding the clock's settings
+and its copy of your WiFi details. Nothing else lives there. Ticking it means
+the clock comes up knowing nothing and asks you to set up WiFi again, exactly
+as it would out of the box.</p>
+
+<p>Leaving it unticked replaces the firmware and keeps your WiFi and settings,
+which is what you want for an update.</p>
+
+<p>People warn against it because on some other devices that memory holds
+calibration numbers written at the factory that cannot be recovered. These
+boards have nothing like that. Your board's own serial number and network
+address are not stored there either, so erasing cannot touch them.</p>
+
+<p class="note">It is also worth ticking if a clock starts behaving oddly after
+an update: it clears out any leftovers from an older version. You will have to
+set up WiFi again afterwards.</p>
+
+<p><strong>If no device appears in that list</strong>, your computer does not have
+the driver for the board's USB chip. Look at the small square chip next to the
+USB socket: search for a <code>CH340 driver</code> or a <code>CP210x driver</code>
+to match it, install it, and unplug and replug the board.</p>
+
+<h2>Setting up the clock</h2>
+
+<p>The first time it starts, the clock has no WiFi, so it makes its own network
+for you to find it on.</p>
+
+<ol>
+  <li>The screen says to join a network called <code>My_CYD_Clock</code>. It is
+      open, with no password.</li>
+  <li>Join it on your phone. A setup page should open by itself. If it does not,
+      open a browser and go to the address shown on the clock.</li>
+  <li>Pick your own network from the list, type the password, and press Connect.</li>
+  <li>The clock restarts and shows you the address for its settings page, where
+      everything else can be changed.</li>
+</ol>
+
+<p class="note">Some phones need mobile data turned off before that setup page
+will open on its own, because the phone works out that this network has no
+internet and quietly goes back to mobile. Typing the address by hand always
+works.</p>
+
+<h2>Afterwards</h2>
+
+<p>Touch and hold the screen to see the clock's address on your network, then
+browse to it for the settings: colours, clock face, time zone, weather location,
+alarms and brightness.</p>
+
+<p>If the colours look like a photographic negative, tick <strong>Invert
+colours</strong> under Time Display and save. Some panels need it.</p>
+
+<footer>
+  <!-- Replace this with a link to your own copy once it is on GitHub. -->
+  <p>Firmware source and build instructions:
+     <a href="https://github.com/tomtombombadil/My_CYD_Clock">on GitHub</a></p>
+  <p>Installing happens entirely between your browser and the board. Nothing is
+     uploaded anywhere.</p>
+</footer>
+
+</div>
+
+<script type="module"
+        src="https://unpkg.com/esp-web-tools@10/dist/web/install-button.js?module"></script>
+<script>
+  // Hide the browser warning for people who are already in a browser that works.
+  if (navigator.serial || navigator.usb) {
+    document.getElementById('browser-note').style.display = 'none';
+  }
+
+  // Opened straight off the hard drive, the install buttons get as far as the
+  // COM port picker and then fail on "Failed to download manifest", because a
+  // page loaded this way is not allowed to read the files sitting next to it.
+  // Say so up front rather than letting people hit that.
+  if (location.protocol === 'file:') {
+    document.getElementById('local-file-note').style.display = 'block';
+  }
+</script>
+</body>
+</html>
