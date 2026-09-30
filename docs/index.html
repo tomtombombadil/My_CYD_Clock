@@ -77,6 +77,10 @@ esp-web-install-button{--esp-tools-button-color:#fff}
 
 <h2>Install it</h2>
 
+<p id="version-line" class="sub" style="display:none">Installs version
+<strong id="version-number"></strong>. What changed in each version is in the
+<a href="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/CHANGELOG.md">version history</a>.</p>
+
 <p>Plug the board into your computer with a USB cable that carries data, then
 pick your board below. Charge-only cables look identical and will not work.</p>
 
@@ -84,7 +88,8 @@ pick your board below. Charge-only cables look identical and will not work.</p>
   <h3>2.8 inch</h3>
   <p class="sub">ESP32-2432S028R &middot; 240 x 320</p>
   <esp-web-install-button manifest="manifest-cyd28.json">
-    <button class="install" slot="activate">Install on the 2.8 inch board</button>
+    <button class="install" slot="activate" data-manifest="manifest-cyd28.json"
+            data-label="on the 2.8 inch board">Install on the 2.8 inch board</button>
     <span slot="unsupported" class="note">Your browser cannot do this. Use Chrome or Edge on a computer.</span>
     <span slot="not-allowed" class="note">This only works over a secure connection.</span>
   </esp-web-install-button>
@@ -94,7 +99,8 @@ pick your board below. Charge-only cables look identical and will not work.</p>
   <h3>3.2 inch</h3>
   <p class="sub">ESP32-2432S032R &middot; 240 x 320</p>
   <esp-web-install-button manifest="manifest-cyd32.json">
-    <button class="install" slot="activate">Install on the 3.2 inch board</button>
+    <button class="install" slot="activate" data-manifest="manifest-cyd32.json"
+            data-label="on the 3.2 inch board">Install on the 3.2 inch board</button>
     <span slot="unsupported" class="note">Your browser cannot do this. Use Chrome or Edge on a computer.</span>
     <span slot="not-allowed" class="note">This only works over a secure connection.</span>
   </esp-web-install-button>
@@ -105,7 +111,8 @@ pick your board below. Charge-only cables look identical and will not work.</p>
   <p class="sub">ESP32-3248S035R &middot; 320 x 480 &middot; the 4.0 inch board
   uses the same panel</p>
   <esp-web-install-button manifest="manifest-cyd35.json">
-    <button class="install" slot="activate">Install on the 3.5 or 4.0 inch board</button>
+    <button class="install" slot="activate" data-manifest="manifest-cyd35.json"
+            data-label="on the 3.5 or 4.0 inch board">Install on the 3.5 or 4.0 inch board</button>
     <span slot="unsupported" class="note">Your browser cannot do this. Use Chrome or Edge on a computer.</span>
     <span slot="not-allowed" class="note">This only works over a secure connection.</span>
   </esp-web-install-button>
@@ -208,6 +215,31 @@ colours</strong> under Time Display and save. Some panels need it.</p>
   if (location.protocol === 'file:') {
     document.getElementById('local-file-note').style.display = 'block';
   }
+
+  // Show which version each button installs. The version is read from the
+  // same description file the installer itself uses, which the build writes
+  // from the firmware's own version number, so what this page says and what
+  // actually gets written to the board can never disagree.
+  (async function showVersions() {
+    if (location.protocol === 'file:') return;   // cannot read the files from here
+    const seen = new Set();
+    for (const button of document.querySelectorAll('button[data-manifest]')) {
+      try {
+        const reply = await fetch(button.dataset.manifest, { cache: 'no-cache' });
+        if (!reply.ok) continue;
+        const version = (await reply.json()).version;
+        if (!version) continue;
+        button.textContent = 'Install ' + version + ' ' + button.dataset.label;
+        seen.add(version);
+      } catch (e) { /* leave the button as it was */ }
+    }
+    // The boards are always built together, so they normally share one
+    // version. Only show the line at the top when that is true.
+    if (seen.size === 1) {
+      document.getElementById('version-number').textContent = [...seen][0];
+      document.getElementById('version-line').style.display = 'block';
+    }
+  })();
 </script>
 </body>
 </html>

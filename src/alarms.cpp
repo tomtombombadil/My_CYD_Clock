@@ -40,9 +40,37 @@ static portMUX_TYPE g_jobLock = portMUX_INITIALIZER_UNLOCKED;
 // over and over for the whole minute it is due.
 static int g_lastFiredMinute[ALARM_COUNT] = { -1, -1, -1 };
 
+// The red LED's pin has two jobs on the 3.2 and 4.0 inch boards: it lights
+// the LED, and the speaker amplifier only runs while it is held low (see
+// AMP_NEEDS_RED_PIN_LOW in boards.h). The LED and the sound each say what they
+// want here, and the pin is low if either wants it low, so turning the LED
+// off in the middle of a tune can no longer silence it.
+//
+// These can be written from both cores: the sound task switches the
+// amplifier off when a preview ends by itself. Each write sets the pin from
+// both wishes, so whichever write lands last is still right.
+static volatile bool g_wantRedLed = false;
+static volatile bool g_wantAmp    = false;
+
+static void applyRedPin() {
+  bool low = g_wantRedLed;
+#if AMP_NEEDS_RED_PIN_LOW
+  low = low || g_wantAmp;
+#endif
+  digitalWrite(PIN_LED_RED, low ? LOW : HIGH);
+}
+
+// Switches the speaker amplifier on or off, on the boards where that is
+// something the program has to do. Elsewhere it only records the wish.
+static void ampEnable(bool on) {
+  g_wantAmp = on;
+  applyRedPin();
+}
+
 // The LED pins are wired so that pulling a pin LOW lights that colour.
 void ledSet(uint8_t red, uint8_t green, uint8_t blue) {
-  digitalWrite(PIN_LED_RED,   red   > 127 ? LOW : HIGH);
+  g_wantRedLed = (red > 127);
+  applyRedPin();
   digitalWrite(PIN_LED_GREEN, green > 127 ? LOW : HIGH);
   digitalWrite(PIN_LED_BLUE,  blue  > 127 ? LOW : HIGH);
 }
@@ -247,6 +275,7 @@ static void soundTask(void *) {
         g_job.playing = false;
         portEXIT_CRITICAL(&g_jobLock);
         toneStop();
+        ampEnable(false);
       } else {
         soundAt(now - job.startedMs, job.volume);
       }
@@ -271,6 +300,7 @@ static void soundStart(uint8_t sound, uint8_t volume, bool once,
   xSemaphoreTake(g_tuneLock, portMAX_DELAY);
   uint32_t span = loadTune(sound, override);
   xSemaphoreGive(g_tuneLock);
+  ampEnable(true);                    // before the first note, not after it
   uint32_t now  = millis();
   portENTER_CRITICAL(&g_jobLock);
   g_job.sound     = sound;
@@ -291,6 +321,7 @@ static void soundStop() {
   g_job.playing = false;
   portEXIT_CRITICAL(&g_jobLock);
   toneStop();
+  ampEnable(false);
   xSemaphoreGive(g_tuneLock);
 }
 

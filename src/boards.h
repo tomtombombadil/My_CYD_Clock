@@ -96,6 +96,12 @@
   // starts out inverted. Measured on a real one rather than guessed.
   #define BOARD_DEFAULT_INVERT  true
 
+  // The speaker amplifier only runs while GPIO 4 is held low, and GPIO 4 is
+  // also the red LED. Found on a real board: with the LED option off an alarm
+  // made no sound at all, and with it on, sound only came through while the
+  // LED was lit. So the pin is held low whenever a sound plays.
+  #define AMP_NEEDS_RED_PIN_LOW 1
+
 // ---------------------------------------------------------------------------
 // 3.5 inch (and the 4.0 inch board built on the same panel)
 // ---------------------------------------------------------------------------
@@ -115,11 +121,18 @@
   #define TOUCH_FLIP_Y          0
   #define BOARD_DEFAULT_INVERT  false
 
+  // Same as the 3.2 inch: the speaker amplifier only runs while GPIO 4, the
+  // red LED, is held low. Found on a real 4.0 inch board.
+  #define AMP_NEEDS_RED_PIN_LOW 1
+
 #else
   #error "No board chosen. Pick one of the cyd28, cyd32 or cyd35 build setups in platformio.ini."
 #endif
 
-// Sensible defaults so the flip settings can be left out above.
+// Sensible defaults so the settings below can be left out above.
+#ifndef AMP_NEEDS_RED_PIN_LOW
+  #define AMP_NEEDS_RED_PIN_LOW 0
+#endif
 #ifndef TOUCH_FLIP_X
   #define TOUCH_FLIP_X 0
 #endif

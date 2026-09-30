@@ -5,6 +5,35 @@ For what the project is and how to install it, see the [README](README.md).
 
 ---
 
+## What changed in 1.13.6
+
+**Sound on the 3.2 and 4.0 inch boards.** On these two boards the speaker
+amplifier only runs while GPIO 4 is held low, and GPIO 4 is also the red LED.
+Nothing in the program knew that, so sound only came out while an alarm
+happened to have the LED lit. That explains three things at once. Hear it was
+silent, because it never lights the LED. An alarm with the LED option switched
+off made no sound at all. And longer tunes like the trill and Fur Elise cut out,
+because the alarm flashes the LED on for 400 milliseconds twice every two
+seconds and the tune was only heard during those two gaps. The short classic
+beeps mostly landed inside them, which is why they seemed fine.
+
+The pin is now held low whenever a sound is playing, on those two boards only.
+The LED and the sound each say what they want from it, and the pin is low if
+either wants it, so the LED flashing can no longer chop a tune up. The one
+visible side effect is that the red LED stays lit while a sound plays on those
+boards, because it is the same wire. The 2.8 inch board is unchanged.
+
+**Siren is now called Arpeggio,** which is what it actually is: up and down
+the notes of a chord. It is the same sound in the same place in the list, so a
+clock that had it chosen keeps it.
+
+**The flashing page shows the version.** Each install button now says which
+version it installs, and a line above them says the version when all three
+boards match, which they normally do. The number is read from the same file
+the installer uses, so the page and the firmware cannot disagree.
+
+---
+
 ## What changed in 1.13.5
 
 **The alarm volume starts at half.** Full volume distorts badly on the small

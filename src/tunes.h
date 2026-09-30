@@ -66,8 +66,10 @@ static const char RT_TRILL[] PROGMEM =
 static const char RT_CHIME[] PROGMEM =
   "Chime:d=2,o=6,b=133:e,c,1p";
 
+// Up and down the notes of a chord, over and over. It used to be called Siren,
+// which it does not sound like.
 static const char RT_SIREN[] PROGMEM =
-  "Siren:d=8,o=6,b=120:c,e,g,c7,g,e,c,e,g,c7,g,e,1p";
+  "Arpeggio:d=8,o=6,b=120:c,e,g,c7,g,e,c,e,g,c7,g,e,1p";
 
 // --- music, all of it long out of copyright ------------------------------
 
@@ -108,7 +110,7 @@ static const Ringtone RINGTONES[] = {
   { "Beep",                        RT_BEEP        },
   { "Trill",                       RT_TRILL       },
   { "Chime",                       RT_CHIME       },
-  { "Siren",                       RT_SIREN       },
+  { "Arpeggio",                    RT_SIREN       },
   { "Fur Elise, Beethoven",        RT_ELISE       },
   { "Ode to Joy, Beethoven",       RT_ODE         },
   { "Turkish March, Mozart",       RT_TURKISH     },
