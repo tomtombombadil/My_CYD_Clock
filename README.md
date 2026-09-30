@@ -5,10 +5,7 @@ numerals, shows the weather when you tap it, and hosts its own settings page on
 your network. No account, no cloud service, no app. It uses NIST for NTP time, so you
 never have to set it.
 
-<!-- Drop a photo of your clock in here. Put the file somewhere like docs/photo.jpg
-     and change the line below to point at it. A photo does more for a project
-     page than any amount of description. -->
-<!-- ![My CYD Clock](docs/photo.jpg) -->
+<img src="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/docs/screenshots/clock.png" alt="Default Clock Face">
 
 ---
 
