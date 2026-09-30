@@ -1,6 +1,6 @@
 {
   "name": "My CYD Clock  -  3.2 inch  (ESP32-2432S032R)",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "new_install_prompt_erase": true,
   "builds": [
     {

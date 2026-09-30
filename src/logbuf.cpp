@@ -1,6 +1,7 @@
 // logbuf.cpp
 
 #include "logbuf.h"
+#include <esp_task_wdt.h>
 #include <time.h>
 #include <esp_system.h>
 
@@ -20,6 +21,31 @@ RTC_NOINIT_ATTR static uint32_t keepLastRunSeconds;
 RTC_NOINIT_ATTR static uint32_t keepLowestHeap;
 RTC_NOINIT_ATTR static uint16_t keepPos;
 RTC_NOINIT_ATTR static char     keepLog[KEEP_LOG_BYTES];
+
+// When the watchdog fires it knows something the reset reason does not: the
+// name of the task that was hogging the core and would not let go. That name
+// is worth far more than "something stopped responding", so it is written
+// here, into the memory that survives the restart, and read back below.
+RTC_NOINIT_ATTR static uint32_t keepStallMagic;
+RTC_NOINIT_ATTR static char     keepStallTask[20];
+
+#define STALL_MAGIC 0x57415447UL
+
+static String g_stalledTask = "";
+
+// The watchdog calls this from inside its interrupt just before it panics.
+// Nothing clever is allowed in here: no logging, no allocating, no waiting.
+// Copying twenty characters is about the limit, and twenty characters is all
+// this needs.
+extern "C" void esp_task_wdt_isr_user_handler(void) {
+  TaskHandle_t hog = xTaskGetCurrentTaskHandleForCPU(0);
+  const char  *name = hog ? pcTaskGetName(hog) : nullptr;
+  if (!name) name = "unknown";
+  size_t i = 0;
+  for (; i < sizeof(keepStallTask) - 1 && name[i]; i++) keepStallTask[i] = name[i];
+  keepStallTask[i] = 0;
+  keepStallMagic   = STALL_MAGIC;
+}
 
 // ---------------------------------------------------------------------------
 
@@ -61,6 +87,7 @@ void logBegin() {
     keepLastRunSeconds = 0;
     keepLowestHeap     = 0;
     keepPos            = 0;
+    keepStallMagic     = 0;
     memset(keepLog, 0, sizeof(keepLog));
   } else {
     keepRestarts++;
@@ -75,7 +102,13 @@ void logBegin() {
       if (c >= 9 && c < 127) g_previousRun += c;
     }
     g_previousRun.trim();
+
+    if (keepStallMagic == STALL_MAGIC) {
+      keepStallTask[sizeof(keepStallTask) - 1] = 0;
+      g_stalledTask = String(keepStallTask);
+    }
   }
+  keepStallMagic = 0;
 
   keepPos            = 0;
   keepLastRunSeconds = 0;
@@ -92,6 +125,10 @@ String logRestartSummary() {
     out += ". The previous run lasted " + String(g_previousSecs) +
            " seconds and its lowest free memory was " + String(g_previousLow) +
            " bytes";
+    if (g_stalledTask.length()) {
+      out += ". The task holding core 0 when the watchdog fired was \"" +
+             g_stalledTask + "\"";
+    }
   }
   return out;
 }

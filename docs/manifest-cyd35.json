@@ -1,6 +1,6 @@
 {
   "name": "My CYD Clock  -  3.5 and 4.0 inch  (ESP32-3248S035R)",
-  "version": "1.13.0",
+  "version": "1.13.1",
   "new_install_prompt_erase": true,
   "builds": [
     {

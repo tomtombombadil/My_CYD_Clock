@@ -5,6 +5,39 @@ For what the project is and how to install it, see the [README](README.md).
 
 ---
 
+## What changed in 1.13.1
+
+**Version numbers.** The middle number was being bumped for everything,
+including tweaks. From here it is the third number for fixes and small changes,
+the middle one only for something genuinely new, and the first if saved settings
+ever stop being readable.
+
+**The watchdog now names the culprit.** The 2.8 inch board was restarting a few
+seconds after start up, and the kept log said why in general terms: *task
+watchdog, something stopped responding*. That means the idle task on core 0 was
+kept off the processor for five seconds by something that would not let go. It
+also ruled a few things out: free memory never dropped below 153 KB, so nothing
+had run out of room, and the run died eight seconds in, which is five seconds
+after the weather fetch finished.
+
+What the message did not say is *which* task. The watchdog knows, because it
+looks before it panics, so the clock now asks it. A handler runs inside the
+watchdog's own interrupt, reads the name of whatever is holding core 0, and
+copies it into the memory that survives a restart. The next time this happens
+the restart line reads:
+
+```
+Restart number 1, cause: task watchdog, something stopped responding.
+The previous run lasted 8 seconds and its lowest free memory was 153488 bytes.
+The task holding core 0 when the watchdog fired was "xyz"
+```
+
+Nothing has been changed on a hunch to try to fix the hang itself. Two guesses
+have already been made in this project and both were wrong, so this one gets
+evidence first.
+
+---
+
 ## What changed in 1.13.0
 
 **The Turkish March, properly this time.** Not transcribed here but pasted in as
