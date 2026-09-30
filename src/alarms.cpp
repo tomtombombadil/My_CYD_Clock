@@ -40,11 +40,11 @@ static portMUX_TYPE g_jobLock = portMUX_INITIALIZER_UNLOCKED;
 // over and over for the whole minute it is due.
 static int g_lastFiredMinute[ALARM_COUNT] = { -1, -1, -1 };
 
-// The red LED's pin has two jobs on the 3.2 and 4.0 inch boards: it lights
-// the LED, and the speaker amplifier only runs while it is held low (see
-// AMP_NEEDS_RED_PIN_LOW in boards.h). The LED and the sound each say what they
-// want here, and the pin is low if either wants it low, so turning the LED
-// off in the middle of a tune can no longer silence it.
+// On the 3.2 and 4.0 inch boards GPIO 4, the red LED's pin on the 2.8 inch,
+// is the speaker amplifier's on switch instead (see AMP_NEEDS_RED_PIN_LOW in
+// boards.h). The LED and the sound each say what they want here, and the pin
+// is low if either wants it low, so nothing the LED does can switch the
+// amplifier off in the middle of a tune.
 //
 // These can be written from both cores: the sound task switches the
 // amplifier off when a preview ends by itself. Each write sets the pin from
@@ -390,8 +390,18 @@ static void runEffects() {
   uint32_t inCycle = (millis() - g_startedMs) % LED_CYCLE_MS;
 
   if (a.useLed) {
+#if AMP_NEEDS_RED_PIN_LOW
+    // GPIO 4 belongs to the amplifier on these boards, so the flash uses the
+    // other two colours: green and blue taking turns every 400 milliseconds.
+    // Timed from the start of the alarm, not from the two second light
+    // cycle, which is not a whole number of turns and would give green a
+    // double turn every time it came round.
+    bool green = (((millis() - g_startedMs) / 400UL) % 2UL) == 0;
+    ledSet(0, green ? 255 : 0, green ? 0 : 255);
+#else
     bool on = (inCycle < 400) || (inCycle >= 800 && inCycle < 1200);
     ledSet(on ? 255 : 0, 0, 0);
+#endif
   }
 }
 

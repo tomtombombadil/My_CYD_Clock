@@ -77,7 +77,7 @@ esp-web-install-button{--esp-tools-button-color:#fff}
 
 <h2>Install it</h2>
 
-<p id="version-line" class="sub" style="display:none">Installs version
+<p id="version-line" class="sub" style="display:none">Installs
 <strong id="version-number"></strong>. What changed in each version is in the
 <a href="https://github.com/tomtombombadil/My_CYD_Clock/blob/main/CHANGELOG.md">version history</a>.</p>
 
@@ -227,8 +227,9 @@ colours</strong> under Time Display and save. Some panels need it.</p>
       try {
         const reply = await fetch(button.dataset.manifest, { cache: 'no-cache' });
         if (!reply.ok) continue;
-        const version = (await reply.json()).version;
+        let version = (await reply.json()).version;
         if (!version) continue;
+        if (!/^v/.test(version)) version = 'v' + version;   // older files lack the v
         button.textContent = 'Install ' + version + ' ' + button.dataset.label;
         seen.add(version);
       } catch (e) { /* leave the button as it was */ }

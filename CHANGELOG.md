@@ -5,6 +5,24 @@ For what the project is and how to install it, see the [README](README.md).
 
 ---
 
+## What changed in 1.13.7
+
+**The alarm's LED flash works on the 3.2 and 4.0 inch boards.** 1.13.6 said
+GPIO 4 on those boards was both the red LED and the speaker amplifier's on
+switch. Only the second half was right. Holding it low while a sound plays
+lights nothing on the 4.0 inch, so there it is the amplifier's switch and not
+an LED at all. Before 1.13.6 the "Flash the LED" option only seemed to matter
+because it was switching the amplifier on and off. Once the amplifier was
+handled properly the option had nothing left to do on those boards. It now
+flashes the other two colours instead, green and blue taking turns every 400
+milliseconds. The 2.8 inch board still flashes red, as before.
+
+**The version is written with a lower case v** everywhere it is shown: the
+status screen, the settings page, the activity log, the flashing page and the
+screenshots, for example v1.13.7.
+
+---
+
 ## What changed in 1.13.6
 
 **Sound on the 3.2 and 4.0 inch boards.** On these two boards the speaker
@@ -19,9 +37,9 @@ beeps mostly landed inside them, which is why they seemed fine.
 
 The pin is now held low whenever a sound is playing, on those two boards only.
 The LED and the sound each say what they want from it, and the pin is low if
-either wants it, so the LED flashing can no longer chop a tune up. The one
-visible side effect is that the red LED stays lit while a sound plays on those
-boards, because it is the same wire. The 2.8 inch board is unchanged.
+either wants it, so the LED flashing can no longer chop a tune up. The 2.8 inch
+board is unchanged. (These notes first said the red LED would stay lit while
+a sound played on those boards. It does not: see 1.13.7.)
 
 **Siren is now called Arpeggio,** which is what it actually is: up and down
 the notes of a chord. It is the same sound in the same place in the list, so a

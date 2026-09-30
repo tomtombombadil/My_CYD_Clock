@@ -167,7 +167,7 @@ static void sendStatus(AsyncWebServerRequest *request) {
   doc["restarts"] = logRestartCount();
   doc["restart"]  = logRestartSummary();
   doc["heap"]    = (uint32_t)ESP.getFreeHeap();
-  doc["version"] = FW_VERSION;
+  doc["version"] = FW_VERSION_SHOWN;
 
   if (doc.overflowed()) logLine("Status reply ran out of room, some fields are missing");
   String out;
@@ -190,7 +190,7 @@ static void sendSettings(AsyncWebServerRequest *request) {
   // the next Save wrote the empty box back, erasing the ringtone.
   DynamicJsonDocument doc(1536 + cfg.customRingtone.length() + 64);
 
-  doc["version"] = FW_VERSION;
+  doc["version"] = FW_VERSION_SHOWN;
   doc["ssid"]    = cfg.wifiSsid.length() ? cfg.wifiSsid : WiFi.SSID();
   doc["ntp"]     = cfg.ntpServer;
   doc["tz"]      = cfg.timeZone;

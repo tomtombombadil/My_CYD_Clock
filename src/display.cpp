@@ -1094,7 +1094,7 @@ static void renderStatus(struct tm *t, bool timeValid) {
   tft.setTextSize(1);
   tft.setTextColor(TFT_WHITE, back);
   tft.setTextDatum(TC_DATUM);
-  tft.drawString(FW_NAME " " FW_VERSION, W / 2, 2);
+  tft.drawString(FW_NAME " " FW_VERSION_SHOWN, W / 2, 2);
   int listTop = tft.fontHeight() + 6;
 
   bool online = (WiFi.status() == WL_CONNECTED);

@@ -96,10 +96,12 @@
   // starts out inverted. Measured on a real one rather than guessed.
   #define BOARD_DEFAULT_INVERT  true
 
-  // The speaker amplifier only runs while GPIO 4 is held low, and GPIO 4 is
-  // also the red LED. Found on a real board: with the LED option off an alarm
-  // made no sound at all, and with it on, sound only came through while the
-  // LED was lit. So the pin is held low whenever a sound plays.
+  // The speaker amplifier only runs while GPIO 4 is held low. The program
+  // used to treat GPIO 4 as the red LED on every board, so sound only came
+  // through while an alarm happened to be "flashing" that LED. Found on real
+  // boards. Holding it low while sound plays lights nothing on the 4.0 inch,
+  // so there it is the amplifier's switch and not an LED at all. The alarm's
+  // LED flash uses green and blue on these boards instead.
   #define AMP_NEEDS_RED_PIN_LOW 1
 
 // ---------------------------------------------------------------------------
@@ -121,8 +123,8 @@
   #define TOUCH_FLIP_Y          0
   #define BOARD_DEFAULT_INVERT  false
 
-  // Same as the 3.2 inch: the speaker amplifier only runs while GPIO 4, the
-  // red LED, is held low. Found on a real 4.0 inch board.
+  // Same as the 3.2 inch: the speaker amplifier only runs while GPIO 4 is
+  // held low, and holding it low lights no LED. Found on a real 4.0 inch.
   #define AMP_NEEDS_RED_PIN_LOW 1
 
 #else

@@ -307,10 +307,10 @@ void setup() {
   Serial.begin(115200);
   delay(300);
   Serial.println();
-  Serial.println(FW_NAME " " FW_VERSION);
+  Serial.println(FW_NAME " " FW_VERSION_SHOWN);
 
   logBegin();
-  logLine(String(FW_NAME) + " " + FW_VERSION + " starting up, built for the "
+  logLine(String(FW_NAME) + " " + FW_VERSION_SHOWN + " starting up, built for the "
           BOARD_NAME " board");
   logLine(logRestartSummary());
 

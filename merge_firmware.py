@@ -110,7 +110,7 @@ def merge(source, target, env):
     # offers one button per board rather than guessing.
     manifest = {
         "name": "My CYD Clock  -  %s" % BOARD_TITLES.get(board, board),
-        "version": version,
+        "version": "v" + version,
         "new_install_prompt_erase": True,
         "builds": [
             {
@@ -128,7 +128,7 @@ def merge(source, target, env):
 
     size = os.path.getsize(merged)
     print("")
-    print("Ready to flash: docs/firmware/%s.bin  (%.0f KB, version %s)"
+    print("Ready to flash: docs/firmware/%s.bin  (%.0f KB, v%s)"
           % (board, size / 1024.0, version))
     print("Write it to the board starting at address 0.")
     if release_file:

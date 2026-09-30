@@ -10,7 +10,11 @@
 #include "boards.h"
 
 #define FW_NAME      "My CYD Clock"
-#define FW_VERSION   "1.13.6"
+#define FW_VERSION   "1.13.7"
+// How the version is shown anywhere a person reads it, with a lower case v in
+// front. FW_VERSION itself stays a bare number because the build script reads
+// it from this file.
+#define FW_VERSION_SHOWN  "v" FW_VERSION
 
 // Hardware PWM channels.
 // Channels 0 and 1 share a timer, and channels 2 and 3 share another one. The
